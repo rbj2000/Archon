@@ -3,7 +3,14 @@ import { confirmProcessGroupsGone, terminateTree } from '@archon/paths/plugin-pr
 import { DetachedNodeProcesses, type PreparedNodeTermination } from './detached-node-processes';
 import { retainStreamTail } from './executor-shared';
 import type { ExecutionContext } from '@archon/provider-contract';
-import { CONTAINER_ENV_DENYLIST } from '@archon/provider-contract';
+import {
+  AGENT_EXTRA_STDIO,
+  buildAgentSubprocessEnv,
+  CONTAINER_ENV_DENYLIST,
+  isAgentIsolationEnabled,
+  planAgentSpawn,
+  startAgentPipes,
+} from '@archon/provider-contract';
 import { execFileAsync } from '@archon/git';
 import {
   collectCredentialValues,
@@ -321,8 +328,18 @@ export async function runSubprocess(
   if (options.ownProcessGroup && execContext.kind === 'container') {
     throw new Error('Owned subprocess groups require host execution');
   }
-  const subprocessEnv =
-    execContext.kind === 'container' ? options.env : { ...process.env, ...options.env };
+  const isolated = execContext.kind === 'host' && isAgentIsolationEnabled();
+  let subprocessEnv: NodeJS.ProcessEnv;
+  if (execContext.kind === 'container') subprocessEnv = options.env;
+  else if (isolated) {
+    subprocessEnv = buildAgentSubprocessEnv(
+      Object.fromEntries(
+        Object.entries(options.env).filter(
+          (entry): entry is [string, string] => entry[1] !== undefined
+        )
+      )
+    );
+  } else subprocessEnv = { ...process.env, ...options.env };
   // Both outcomes redact against the same values, so the credential set is resolved
   // once here rather than separately per path — a success path that redacted less than
   // the failure path would be the security hole, not a style difference.
@@ -400,12 +417,14 @@ function execHostSubprocess(
   options: SubprocessOptions,
   env: NodeJS.ProcessEnv
 ): Promise<{ stdout: string; stderr: string }> {
-  const shared = { cwd: options.cwd, timeout: options.timeout, env };
+  const isolated = isAgentIsolationEnabled();
+  const shared = { cwd: options.cwd, timeout: options.timeout, env, isolated };
   if (options.ownProcessGroup) return execOwnedProcessGroup(cmd, args, shared);
   const recorded =
     nodeProcessRecorder && (nodeProcessRecorder.mode === 'shared' || options.endTreeOnTimeout);
   const windowsBody = options.endTreeOnTimeout && process.platform === 'win32';
-  if (recorded || windowsBody) {
+  // execFile cannot pass the wrapper's extra pipes, so an isolated subprocess always owns its group.
+  if (recorded || windowsBody || isolated) {
     return execOwnedProcessGroup(cmd, args, {
       ...shared,
       input: options.input,
@@ -471,6 +490,8 @@ type OwnedProcessGroupOptions = {
   cwd: string;
   timeout?: number;
   env: NodeJS.ProcessEnv;
+  /** Run as the agent user. `env` is then the allowlisted environment, and travels on fd 3. */
+  isolated?: boolean;
 } & ({ node?: NodeProcessOptions; input?: never } | { node: NodeProcessOptions; input?: string });
 
 /** One spawned group, and the evidence its handlers record until it settles. */
@@ -529,13 +550,28 @@ function spawnOwnedGroup(
   const { node } = options;
   const posix = process.platform !== 'win32';
   const lifeline = posix && !node;
-  const child = spawn(cmd, lifeline ? ['-c', SETUP_LIFELINE, 'archon-setup', cmd, ...args] : args, {
-    cwd: options.cwd,
-    env: options.env,
+  const finalArgs = lifeline ? ['-c', SETUP_LIFELINE, 'archon-setup', cmd, ...args] : args;
+  const plan = options.isolated
+    ? planAgentSpawn({
+        argv: [cmd, ...finalArgs],
+        location: { cwd: options.cwd },
+        env: options.env as Record<string, string>,
+      })
+    : undefined;
+  // The wrapper enters the directory itself, and refuses it clearly if it is not allowed.
+  const child = spawn(plan?.command ?? cmd, plan?.args ?? finalArgs, {
+    ...(plan ? {} : { cwd: options.cwd }),
+    env: plan?.env ?? options.env,
     windowsHide: true,
     detached: posix,
-    stdio: [lifeline || node ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+    stdio: [
+      lifeline || node ? 'pipe' : 'ignore',
+      'pipe',
+      'pipe',
+      ...(plan ? AGENT_EXTRA_STDIO : []),
+    ],
   });
+  if (plan) child.once('close', startAgentPipes(child, plan));
   return {
     cmd,
     args,

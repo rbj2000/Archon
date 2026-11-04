@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { Readable, Writable } from 'node:stream';
 import { isDeepStrictEqual } from 'node:util';
 import { terminateTree, validateCommand } from '@archon/paths/plugin-process';
@@ -8,10 +8,16 @@ import {
 } from '@archon/paths/credential-redaction';
 import { createLogger } from '@archon/paths';
 import {
+  AGENT_EXTRA_STDIO,
+  buildAgentSubprocessEnv,
   buildProviderSubprocessEnv,
+  isAgentIsolationEnabled,
+  planAgentSpawn,
   providerFailureClassSchema,
+  startAgentPipes,
   providerLifecycleEventSchema,
   providerLifecycleWaitedMsSchema,
+  type AgentSpawnRequest,
   type IAgentProvider,
   type CredentialStatus,
   type ProviderChunk,
@@ -67,12 +73,33 @@ function protocolFailure(
   );
 }
 
+/** With a `location`, the process runs as the agent user and `env` travels on the wrapper's fd 3. */
+function spawnProviderProcess(
+  argv: readonly [string, ...string[]],
+  env: NodeJS.ProcessEnv,
+  location: AgentSpawnRequest['location'] | undefined
+): ChildProcessWithoutNullStreams {
+  const plan = location
+    ? planAgentSpawn({ argv, location, env: env as Record<string, string> })
+    : undefined;
+  // The extra pipes hide from the overloads that stdin, stdout and stderr are all still piped.
+  const child = spawn(plan?.command ?? argv[0], plan?.args ?? argv.slice(1), {
+    detached: process.platform !== 'win32',
+    windowsHide: true,
+    env: plan?.env ?? env,
+    stdio: ['pipe', 'pipe', 'pipe', ...(plan ? AGENT_EXTRA_STDIO : [])],
+  }) as ChildProcessWithoutNullStreams;
+  if (plan) child.once('close', startAgentPipes(child, plan));
+  return child;
+}
+
 function startProcess(
   descriptor: ProviderPluginDescriptor,
   argv: readonly [string, ...string[]],
   origin: ProcessProviderOrigin,
   options: Pick<SendQueryOptions, 'env' | 'execContext' | 'protectedEnvKeys'>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  location: AgentSpawnRequest['location'] = 'home'
 ): {
   connect(): Promise<ConnectedProvider>;
   failure(error: unknown): Promise<Error>;
@@ -84,7 +111,10 @@ function startProcess(
   // One logger per process, not a module cache: a logger cached by an earlier caller
   // would outlive any test that replaces createLogger to observe these diagnostics.
   const log = createLogger('core.provider-process');
-  const env = buildProviderSubprocessEnv(options.execContext?.kind === 'container' ? {} : options);
+  const isolated = options.execContext?.kind !== 'container' && isAgentIsolationEnabled();
+  const env = isolated
+    ? buildAgentSubprocessEnv(options.env)
+    : buildProviderSubprocessEnv(options.execContext?.kind === 'container' ? {} : options);
   const secrets = [
     ...collectCredentialValues(env, options.protectedEnvKeys),
     ...collectCredentialValues(
@@ -97,12 +127,7 @@ function startProcess(
   secrets.sort((a, b) => b.length - a.length);
   const redact = (text: string): string => redactCredentialValues(text, secrets);
   const providerLog = createLogger(`provider.${descriptor.id}`);
-  const child = spawn(argv[0], argv.slice(1), {
-    detached: process.platform !== 'win32',
-    windowsHide: true,
-    env,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
+  const child = spawnProviderProcess(argv, env, isolated ? location : undefined);
   // Bun can reset child.pid after exit; termination must use the PID we launched.
   const pid = child.pid;
   let stderrBytes = 0;
@@ -299,7 +324,8 @@ export class ProcessAgentProvider implements IAgentProvider {
       this.argv,
       this.origin,
       options,
-      options.abortSignal
+      options.abortSignal,
+      { cwd }
     );
     let settled = false;
     try {

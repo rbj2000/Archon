@@ -4,7 +4,7 @@
  *   sudo -n -C 5 -u archon-agent archon-agent-exec (--cwd <dir> | --home) -- <program> [args...]
  *
  * fd 3: environment for the program, NUL-terminated KEY=VALUE records, up to EOF.
- * fd 4: control pipe. The caller holds the write end; EOF ends the program's tree.
+ * fd 4: control pipe. The caller holds the write end; EOF kills the program's tree at once.
  *
  * Exit status: the program's, or 128+signal. 125 is a refusal by this wrapper; 127 a failed exec.
  *
@@ -37,6 +37,7 @@
 #define EXIT_EXEC_FAILED 127
 #define EXIT_GRACE_MS 10000
 #define KILL_RETRY_MS 100
+#define SUDO_DIED_SIGNAL SIGUSR1
 #define ENV_FD 3
 #define CONTROL_FD 4
 #define MAX_ENV_BYTES (1024 * 1024)
@@ -204,6 +205,7 @@ static long now_ms(void) {
 static int supervise(pid_t leader, int signals) {
   int control = CONTROL_FD;
   bool leader_done = false;
+  bool hard = false; /* The owner is gone or asked for SIGKILL, so there is no grace period. */
   bool terminating = false;
   int status = 0;
   long deadline = 0;
@@ -232,9 +234,10 @@ static int supervise(pid_t leader, int signals) {
       if (poll(fds, 2, timeout) < 0 && errno != EINTR) refuse("poll: %s", strerror(errno));
       if (fds[0].revents & POLLIN) {
         struct signalfd_siginfo info;
-        if (read(signals, &info, sizeof(info)) == (ssize_t)sizeof(info) &&
-            info.ssi_signo != SIGCHLD)
-          forward = (int)info.ssi_signo;
+        if (read(signals, &info, sizeof(info)) == (ssize_t)sizeof(info)) {
+          if (info.ssi_signo == SUDO_DIED_SIGNAL) hard = true;
+          else if (info.ssi_signo != SIGCHLD) forward = (int)info.ssi_signo;
+        }
       }
       if (control >= 0 && fds[1].revents != 0) {
         char drain[64];
@@ -242,7 +245,7 @@ static int supervise(pid_t leader, int signals) {
         if (n == 0 || (n < 0 && errno != EINTR && errno != EAGAIN)) {
           close(control);
           control = -1;
-          forward = SIGTERM;
+          hard = true;
         }
       }
     }
@@ -252,7 +255,8 @@ static int supervise(pid_t leader, int signals) {
       kill(-leader, forward);
       signal_children(forward);
     }
-    if (terminating && now_ms() >= deadline) {
+    if (hard || (terminating && now_ms() >= deadline)) {
+      terminating = true;
       kill(-leader, SIGKILL);
       signal_children(SIGKILL);
     }
@@ -295,15 +299,16 @@ int main(int argc, char **argv) {
   sigaddset(&handled, SIGINT);
   sigaddset(&handled, SIGHUP);
   sigaddset(&handled, SIGCHLD);
+  sigaddset(&handled, SUDO_DIED_SIGNAL);
   if (sigprocmask(SIG_BLOCK, &handled, &original) != 0) refuse("sigprocmask failed");
   int signals = signalfd(-1, &handled, SFD_CLOEXEC);
   if (signals < 0) refuse("signalfd: %s", strerror(errno));
 
   /* Reparents escaped descendants here, so they can be found and ended. */
   if (prctl(PR_SET_CHILD_SUBREAPER, 1) != 0) refuse("subreaper: %s", strerror(errno));
-  /* Sudo forks to run this, so the parent is sudo. Its death arrives as a SIGTERM. */
+  /* Sudo forks to run this, so the parent is sudo. Sudo only dies first if it was SIGKILLed. */
   pid_t sudo = getppid();
-  if (prctl(PR_SET_PDEATHSIG, SIGTERM) != 0) refuse("pdeathsig: %s", strerror(errno));
+  if (prctl(PR_SET_PDEATHSIG, SUDO_DIED_SIGNAL) != 0) refuse("pdeathsig: %s", strerror(errno));
   if (getppid() != sudo) refuse("parent exited during startup");
 
   /* Closes on exec. EOF means setsid and exec both happened; bytes carry exec's errno. */

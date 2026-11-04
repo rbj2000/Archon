@@ -121,6 +121,7 @@ export function planAgentSpawn(request: AgentSpawnRequest): AgentSpawnPlan {
 export const AGENT_EXTRA_STDIO = ['pipe', 'pipe'] as const;
 
 interface AgentChild {
+  pid?: number | undefined;
   stdio: readonly unknown[];
 }
 
@@ -132,9 +133,11 @@ interface WritablePipe {
 /**
  * Sends the environment and returns the function that releases the control pipe. The pipe must
  * stay open for the life of the process, because closing it ends the tree. A write error means the
- * wrapper already exited, which the caller sees as the child's exit status.
+ * wrapper already exited, which the caller sees as the child's exit status. A spawn that failed has
+ * no pid and reports through the child's `error` event, so it is left for that handler.
  */
 export function startAgentPipes(child: AgentChild, plan: AgentSpawnPlan): () => void {
+  if (child.pid === undefined) return () => undefined;
   const envPipe = child.stdio[3] as WritablePipe | null | undefined;
   const controlPipe = child.stdio[4] as WritablePipe | null | undefined;
   if (!envPipe || !controlPipe) {

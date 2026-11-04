@@ -227,6 +227,17 @@ took=$(($(date +%s) - started))
 kill "$CTL_PID" 2>/dev/null
 clean
 
+start_tree stubborn-eof 'trap "" TERM INT HUP; sleep 1000 & while :; do sleep 0.2; done'
+kill "$CTL_PID"
+wait_gone 2 'while :' && ok || no 'control pipe EOF waited for the grace period'
+clean
+
+start_tree stubborn-sudo 'trap "" TERM INT HUP; sleep 1000 & while :; do sleep 0.2; done'
+kill -KILL "$SUDO_PID"
+wait_gone 2 'while :' && ok || no 'SIGKILL of sudo waited for the grace period'
+kill "$CTL_PID" 2>/dev/null
+clean
+
 echo '# concurrent runs'
 start_tree one 'sleep 1000 & wait'
 a_sudo=$SUDO_PID a_ctl=$CTL_PID

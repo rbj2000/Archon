@@ -121,9 +121,14 @@ describe('planAgentSpawn', () => {
 describe('startAgentPipes', () => {
   test('refuses a child without the extra pipes', () => {
     const plan = planAgentSpawn({ argv: ['id'], location: 'home', env: {} });
-    expect(() => startAgentPipes({ stdio: [null, null, null] }, plan)).toThrow(
+    expect(() => startAgentPipes({ pid: 1, stdio: [null, null, null] }, plan)).toThrow(
       AgentExecConfigError
     );
+  });
+
+  test('leaves a failed spawn to the child error handler', () => {
+    const plan = planAgentSpawn({ argv: ['id'], location: 'home', env: {} });
+    expect(() => startAgentPipes({ stdio: [] }, plan)()).not.toThrow();
   });
 
   // The extra fds are what the wrapper depends on, so this uses a real spawn under Bun.
