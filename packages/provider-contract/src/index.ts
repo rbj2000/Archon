@@ -136,6 +136,16 @@ export {
 } from './skills';
 
 export { buildProviderSubprocessEnv } from './agent-provider';
+export {
+  AGENT_ARCHON_ENV_KEYS,
+  AGENT_EXTRA_STDIO,
+  AgentExecConfigError,
+  buildAgentSubprocessEnv,
+  isAgentIsolationEnabled,
+  planAgentSpawn,
+  startAgentPipes,
+} from './agent-exec';
+export type { AgentSpawnPlan, AgentSpawnRequest } from './agent-exec';
 
 export { mcpServerMap, type McpServerMap } from './mcp-config';
 
