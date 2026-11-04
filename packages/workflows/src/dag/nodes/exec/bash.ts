@@ -5,6 +5,7 @@ import {
   type RawSubprocessRejection,
 } from '../../../subprocess';
 import { finishNodeExecution } from '../../../node-execution';
+import { applyNodeStateOutbox } from '../../node-state-exchange';
 import { type NodeExecutionResult } from '../../../node-record-serialization';
 import { type NodeExecutionRecord } from '../../../schemas/node-execution';
 import { recordNodeState } from '../../../node-event-write';
@@ -151,6 +152,7 @@ export async function executeBashNode(
     // diagnostics; it throws an ExecOutputContractError, handled by this function's catch.
     certified = certifyExecOutput(node, trimmedStdout, credentialValues);
     await assertExecArtifactPointers(workflowRun, node, certified.structuredOutput);
+    await applyNodeStateOutbox(ctx, node, message => new ExecOutputContractError(message));
   } catch (error) {
     return recordBashFailure(ctx, node, execution, bashPath, error);
   }

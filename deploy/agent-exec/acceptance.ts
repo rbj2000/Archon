@@ -6,6 +6,11 @@ import { join } from 'node:path';
 import { recordNodeProcessTrees, runSubprocess } from '/app/packages/workflows/src/subprocess.ts';
 import { processProviderRegistration } from '/app/packages/core/src/providers/process-registration.ts';
 import { descriptor } from '/app/packages/core/src/providers/fixtures/process-provider-data.ts';
+import { createFileWorkflowStore } from '/app/packages/workflows/src/file-store/store.ts';
+import {
+  applyStateOutbox,
+  prepareStateExchange,
+} from '/app/packages/workflows/src/state-exchange.ts';
 
 const WT = '/.archon/workspaces/o/r/worktrees/wt';
 const FIXTURE = '/app/packages/core/src/providers/fixtures/process-provider.ts';
@@ -147,6 +152,47 @@ check('owned setup group runs as archon-agent', setup.trim() === '1201', setup);
   check('owner: tree started', agentCount('sleep 3101') > 0);
   owner.kill('SIGKILL');
   check('SIGKILL of the owner ends the tree', await gone('sleep 3101', 3000));
+}
+
+// `archon state` through the outbox: the real CLI, as the agent, with no store.
+{
+  const store = await createFileWorkflowStore({ root: '/.archon/acceptance-store' });
+  const scope = { kind: 'project', key: 'o/r' } as const;
+  const writer = { kind: 'run', runId: 'run', nodePath: 'node' } as const;
+  await store.putStateDocument({ scope, writer, name: 'seen', value: 'before', ifRevision: 0 });
+  const dir = await prepareStateExchange({
+    store,
+    projectKey: 'o/r',
+    stateDir: '/.archon/workspaces/o/r/state',
+    runId: 'run',
+    nodePath: 'node',
+  });
+  const cli = `${process.execPath} --no-env-file /app/packages/cli/src/cli.ts state`;
+  const agentState = (script: string) => run(script, { ARCHON_STATE_EXCHANGE: dir });
+  const { stdout: read } = await agentState(`${cli} get seen`);
+  check('agent reads the snapshot', read.includes('"before"'), read);
+  const { stdout: queued } = await agentState(`printf '"made"' | ${cli} put made --if-revision 0`);
+  check(
+    'agent queues a write',
+    (JSON.parse(queued) as { queued?: boolean }).queued === true,
+    queued
+  );
+  check('the write waits for the server', (await store.getStateDocument(scope, 'made')) === null);
+  check(
+    'agent cannot change the snapshot',
+    await refused(agentState(`echo x > ${dir}/snapshot.json`))
+  );
+  check('agent cannot replace the outbox', await refused(agentState(`mv ${dir}/outbox ${dir}/o`)));
+  check('install scope fails', await refused(agentState(`${cli} list --install`)));
+  await applyStateOutbox({ store, projectKey: 'o/r', exchangeDir: dir, writer });
+  check(
+    'server applies the write',
+    (await store.getStateDocument(scope, 'made'))?.value === 'made'
+  );
+  check(
+    'no exchange fails clearly',
+    await refused(run(`${cli} get seen`, { ARCHON_STATE_EXCHANGE: '/nonexistent' }))
+  );
 }
 
 // Providers.

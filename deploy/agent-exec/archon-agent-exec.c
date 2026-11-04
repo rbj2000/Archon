@@ -52,6 +52,7 @@ static const char *const ALLOWED_ARCHON[] = {
     "ARCHON_RUN_ENV_KEYS",
     "ARCHON_NODE_EXECUTION",
     "ARCHON_CLI_COMMAND",
+    "ARCHON_STATE_EXCHANGE",
 };
 
 static const char *const DENIED_EXACT[] = {

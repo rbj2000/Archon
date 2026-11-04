@@ -1,4 +1,5 @@
 import type { NodeExecutionMetadata } from './schemas/node-execution';
+import { stateExchangeEnvironment } from './state-exchange';
 import { USER_CONTROLLED_VARIABLES } from './user-controlled-variables';
 import { currentPackDir } from './workflow-variables';
 import { packDirOrThrow, type PackDirScope } from './pack-dir';
@@ -67,6 +68,7 @@ export function buildExecNodeEnvironment(context: ExecNodeEnvironmentContext): N
     ARCHON_RUN_ENV_KEYS: '',
     ARCHON_NODE_EXECUTION:
       context.nodeExecution === null ? '' : nodeExecutionEnvValue(context.nodeExecution),
+    ...stateExchangeEnvironment(context.stateDir, context.nodeExecution),
   };
   env.ARCHON_RUN_ENV_KEYS = JSON.stringify([...Object.keys(env), ...context.inputEnvKeys]);
   return env;
@@ -90,12 +92,14 @@ function nodeExecutionEnvValue(execution: NodeExecutionIdentity): string {
  */
 export function buildAiNodeEnvironment(
   execution: NodeExecutionIdentity,
-  cliCommand: string | undefined
+  cliCommand: string | undefined,
+  stateDir: string
 ): Record<string, string> {
   return {
     WORKFLOW_ID: execution.runId,
     ARCHON_NODE_EXECUTION: nodeExecutionEnvValue(execution),
     ARCHON_CLI_COMMAND: cliCommand ?? '',
+    ...stateExchangeEnvironment(stateDir, execution),
   };
 }
 

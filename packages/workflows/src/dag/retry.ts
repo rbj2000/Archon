@@ -18,6 +18,7 @@ import type { IWorkflowPlatform, WorkflowDeps } from '../deps';
 import type { RunLayersContext } from './run-context';
 import { shouldContinueStreamingForStatus, waitForNodeRetry } from './run-control';
 import { sumTokenUsage } from './usage';
+import { withNodeStateExchange } from './node-state-exchange';
 import { getLog } from './log';
 
 /** Default DAG node retry for TRANSIENT errors */
@@ -96,7 +97,15 @@ export function retryableFailureClass(
  * after source preparation and before recording its attempt. Admission is synchronous
  * so parallel siblings cannot share the last unit.
  */
-export async function runBudgetedAttempt(
+export function runBudgetedAttempt(
+  ctx: RunLayersContext,
+  node: AgentNode | ExecNode,
+  attempt: (reserve: () => Promise<void>) => Promise<NodeExecutionResult>
+): Promise<NodeExecutionResult> {
+  return withNodeStateExchange(ctx, node, () => runAdmittedAttempt(ctx, node, attempt));
+}
+
+async function runAdmittedAttempt(
   ctx: RunLayersContext,
   node: AgentNode | ExecNode,
   attempt: (reserve: () => Promise<void>) => Promise<NodeExecutionResult>

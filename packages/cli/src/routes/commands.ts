@@ -99,6 +99,24 @@ export async function runState({
   values,
   cwd,
 }: CliRouteContext): Promise<number> {
+  const options = {
+    cwd,
+    ...(typeof values['if-revision'] === 'string' ? { ifRevision: values['if-revision'] } : {}),
+    ...(typeof values.limit === 'string' ? { limit: values.limit } : {}),
+    ...(typeof values.prefix === 'string' ? { prefix: values.prefix } : {}),
+    ...(typeof values.project === 'string' ? { project: values.project } : {}),
+    ...(values.install === true ? { install: true } : {}),
+    ...(values.raw === true ? { raw: true } : {}),
+    ...(values.values === true ? { values: true } : {}),
+    ...(values.lease === true ? { lease: true } : {}),
+    ...(values['release-lease'] === true ? { releaseLease: true } : {}),
+  };
+  // Checked before anything opens a store: under agent isolation this process has no credentials.
+  const exchangeDir = process.env.ARCHON_STATE_EXCHANGE;
+  if (exchangeDir) {
+    const { stateExchangeCommand } = await import('../commands/state-exchange');
+    return await stateExchangeCommand(exchangeDir, subcommand, positionals.slice(2), options);
+  }
   const database = await usesDatabaseStore();
   const { stateCommand } = await loadRoute(() => import('../commands/state'), { database });
   const { createCliWorkflowHost } = await import('../utils/workflow-host');
@@ -109,18 +127,7 @@ export async function runState({
     await createCliWorkflowHost(),
     subcommand,
     positionals.slice(2),
-    {
-      cwd,
-      ...(typeof values['if-revision'] === 'string' ? { ifRevision: values['if-revision'] } : {}),
-      ...(typeof values.limit === 'string' ? { limit: values.limit } : {}),
-      ...(typeof values.prefix === 'string' ? { prefix: values.prefix } : {}),
-      ...(typeof values.project === 'string' ? { project: values.project } : {}),
-      ...(values.install === true ? { install: true } : {}),
-      ...(values.raw === true ? { raw: true } : {}),
-      ...(values.values === true ? { values: true } : {}),
-      ...(values.lease === true ? { lease: true } : {}),
-      ...(values['release-lease'] === true ? { releaseLease: true } : {}),
-    },
+    options,
     { storeKind }
   );
 }

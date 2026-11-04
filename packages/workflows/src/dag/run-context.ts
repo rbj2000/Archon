@@ -320,7 +320,8 @@ export function aiNodeEnvironment(
 ): Record<string, string> {
   return buildAiNodeEnvironment(
     execution,
-    ctx.execContext.kind === 'host' ? process.env.ARCHON_CLI_COMMAND : undefined
+    ctx.execContext.kind === 'host' ? process.env.ARCHON_CLI_COMMAND : undefined,
+    ctx.stateDir
   );
 }
 

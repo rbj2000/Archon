@@ -73,6 +73,7 @@
     "./file-store": "./src/file-store/index.ts",
     "./provider-event-reader": "./src/provider-event-reader.ts",
     "./state-document-store": "./src/state-document-store.ts",
+    "./state-exchange": "./src/state-exchange.ts",
     "./state-document-conformance": "./src/state-document-conformance.ts"
   },
   "scripts": {

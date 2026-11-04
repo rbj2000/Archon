@@ -29,6 +29,7 @@ export const AGENT_ARCHON_ENV_KEYS = [
   'ARCHON_RUN_ENV_KEYS',
   'ARCHON_NODE_EXECUTION',
   'ARCHON_CLI_COMMAND',
+  'ARCHON_STATE_EXCHANGE',
 ] as const;
 
 export class AgentExecConfigError extends Error {

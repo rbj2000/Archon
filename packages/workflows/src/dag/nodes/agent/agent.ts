@@ -1,5 +1,6 @@
 import { finishNodeExecution } from '../../../node-execution';
 import type { InvocationListings } from '../../../invocation-listings';
+import { applyNodeStateOutbox } from '../../node-state-exchange';
 import { type NodeExecutionResult } from '../../../node-record-serialization';
 import { type NodeFailureKind } from '../../../schemas/node-execution';
 import { recordNodeState } from '../../../node-event-write';
@@ -316,6 +317,8 @@ async function runWorkload(
       throw new NodeFailure('output_contract', `Node '${node.id}': ${badPointer}.`);
     }
   }
+
+  await applyNodeStateOutbox(ctx, node, message => new NodeFailure('output_contract', message));
 
   // Capture the producer's declared field set so downstream `$node.output.field`
   // refs can tell a declared-optional-absent field ('') from a typo (throws).

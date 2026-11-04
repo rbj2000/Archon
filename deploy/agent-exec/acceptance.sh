@@ -5,9 +5,10 @@
 set -u
 R=/.archon/workspaces/o/r
 WT=$R/worktrees/wt
-mkdir -p "$WT" "$R/logs"
+mkdir -p "$WT" "$R/logs" "$R/state"
 chown -R appuser:appuser /.archon
-chgrp -R archon-work "$R/worktrees"
+chgrp -R archon-work "$R/worktrees" "$R/state"
+chmod 2775 "$R/state"
 chmod -R g+rwX "$R/worktrees"
 find "$R/worktrees" -type d -exec chmod g+s {} +
 chmod 711 /.archon /.archon/workspaces /.archon/workspaces/o "$R"

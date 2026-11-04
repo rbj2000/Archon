@@ -5,6 +5,7 @@ import {
   type RawSubprocessRejection,
 } from '../../../subprocess';
 import { finishNodeExecution } from '../../../node-execution';
+import { applyNodeStateOutbox } from '../../node-state-exchange';
 import { type NodeExecutionResult } from '../../../node-record-serialization';
 import { type NodeExecutionRecord } from '../../../schemas/node-execution';
 import { recordNodeState } from '../../../node-event-write';
@@ -329,6 +330,7 @@ async function runScript(
   // this node's stdout a contract, and the canonical document replaces the raw text.
   const certified = certifyExecOutput(node, trimmedStdout, credentialValues);
   await assertExecArtifactPointers(workflowRun, node, certified.structuredOutput);
+  await applyNodeStateOutbox(ctx, node, message => new ExecOutputContractError(message));
   return certified;
 }
 
