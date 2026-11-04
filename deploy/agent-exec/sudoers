@@ -1,0 +1,2 @@
+Defaults:appuser env_reset, !setenv, closefrom_override, secure_path="/usr/sbin:/usr/bin:/sbin:/bin"
+appuser ALL=(archon-agent) NOPASSWD: NOSETENV: /usr/local/sbin/archon-agent-exec

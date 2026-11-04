@@ -74,6 +74,28 @@ RUN bun run build:web && \
 # Stage 3: Production image
 # ---------------------------------------------------------------------------
 ARG BUN_VERSION=1.4.2
+FROM oven/bun:${BUN_VERSION}-slim AS agent-exec-build
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY deploy/agent-exec/archon-agent-exec.c /tmp/
+RUN gcc -std=c11 -O2 -Wall -Wextra -Werror -D_FORTIFY_SOURCE=2 -fstack-protector-strong -static \
+      -o /tmp/archon-agent-exec /tmp/archon-agent-exec.c
+
+# Not part of the production image: scripts/test-agent-exec.sh builds this target.
+FROM oven/bun:${BUN_VERSION}-slim AS agent-exec-test
+RUN apt-get update && apt-get install -y --no-install-recommends sudo gosu procps \
+    && rm -rf /var/lib/apt/lists/*
+RUN useradd -m -u 1001 -s /bin/bash appuser \
+    && groupadd -g 1300 archon-work \
+    && useradd -m -u 1201 -U -G archon-work -s /bin/bash archon-agent \
+    && usermod -aG archon-work appuser
+COPY --from=agent-exec-build /tmp/archon-agent-exec /usr/local/sbin/archon-agent-exec
+COPY deploy/agent-exec/sudoers /etc/sudoers.d/archon-agent
+COPY deploy/agent-exec/test-wrapper.sh /usr/local/bin/test-wrapper.sh
+RUN chmod 0755 /usr/local/sbin/archon-agent-exec && chmod 0440 /etc/sudoers.d/archon-agent \
+    && visudo -cf /etc/sudoers.d/archon-agent
+ENTRYPOINT ["bash", "/usr/local/bin/test-wrapper.sh"]
+
 FROM oven/bun:${BUN_VERSION}-slim AS production
 
 # OCI Labels for GHCR
@@ -94,6 +116,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg \
     gosu \
+    sudo \
     postgresql-client \
     # ripgrep + jq: expected by Claude Code / Codex agents (rg is their default
     # code-search tool; jq powers JSON handling in bash workflow nodes) — see #1836
@@ -145,6 +168,18 @@ ENV HOME=/home/appuser
 # /app is still empty here (only WORKDIR created it) — non-recursive chown suffices.
 RUN useradd -m -u 1001 -s /bin/bash appuser \
     && chown appuser:appuser /app
+
+# Untrusted execution runs as archon-agent; archon-work is the only group it shares with appuser.
+# The wrapper is the only way in: see deploy/agent-exec/.
+RUN groupadd -g 1300 archon-work \
+    && useradd -m -u 1201 -U -G archon-work -s /bin/bash archon-agent \
+    && usermod -aG archon-work appuser
+COPY --from=agent-exec-build /tmp/archon-agent-exec /usr/local/sbin/archon-agent-exec
+COPY deploy/agent-exec/sudoers /etc/sudoers.d/archon-agent
+RUN chown root:root /usr/local/sbin/archon-agent-exec /etc/sudoers.d/archon-agent \
+    && chmod 0755 /usr/local/sbin/archon-agent-exec \
+    && chmod 0440 /etc/sudoers.d/archon-agent \
+    && visudo -cf /etc/sudoers.d/archon-agent
 
 # Create Archon directories
 RUN mkdir -p /.archon/workspaces /.archon/worktrees \
