@@ -39,6 +39,16 @@ if [ "$(id -u)" = "0" ]; then
   # and other user-specific state survive rebuilds. On bind mounts, host UIDs
   # don't map to appuser (1001), so fix ownership via fix_ownership as well.
   fix_ownership /home/appuser
+  # Provider state for the agent user. A failure here must stop startup: the boundary's layout
+  # would not be in force. models.json holds connection settings Pi cannot start without.
+  if [ -n "${ARCHON_AGENT_USER:-}" ]; then
+    install -d -o archon-agent -g archon-agent -m 700 \
+      /home/archon-agent/.claude /home/archon-agent/.pi /home/archon-agent/.pi/agent || exit 1
+    if [ -f /home/appuser/.pi/agent/models.json ]; then
+      install -o root -g archon-agent -m 640 /home/appuser/.pi/agent/models.json \
+        /home/archon-agent/.pi/agent/models.json || exit 1
+    fi
+  fi
   if [ "$chown_failed" = "0" ]; then
     RUNNER="gosu appuser"
   elif [ "${ARCHON_ALLOW_ROOT_FALLBACK:-0}" = "1" ]; then

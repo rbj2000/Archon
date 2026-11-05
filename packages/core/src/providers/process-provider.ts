@@ -73,6 +73,26 @@ function protocolFailure(
   );
 }
 
+/**
+ * Install-level credentials a provider needs but `bash:` and `script:` nodes must not get, so they
+ * are added here and never to the shared agent environment. Only Claude has any today: Pi and Codex
+ * read their own configuration, and a credential delivered for a run arrives in the managed env.
+ */
+const AGENT_INSTALL_CREDENTIAL_KEYS: Readonly<Record<string, readonly string[]>> = {
+  claude: ['CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_API_KEY', 'ANTHROPIC_API_KEY'],
+};
+
+export function agentInstallCredentials(
+  providerId: string,
+  hostEnv: NodeJS.ProcessEnv = process.env
+): Record<string, string> {
+  const entries = (AGENT_INSTALL_CREDENTIAL_KEYS[providerId] ?? []).flatMap(key => {
+    const value = hostEnv[key];
+    return value ? [[key, value] as const] : [];
+  });
+  return Object.fromEntries(entries);
+}
+
 /** With a `location`, the process runs as the agent user and `env` travels on the wrapper's fd 3. */
 function spawnProviderProcess(
   argv: readonly [string, ...string[]],
@@ -112,8 +132,9 @@ function startProcess(
   // would outlive any test that replaces createLogger to observe these diagnostics.
   const log = createLogger('core.provider-process');
   const isolated = options.execContext?.kind !== 'container' && isAgentIsolationEnabled();
+  const installCredentials = isolated ? agentInstallCredentials(descriptor.id) : {};
   const env = isolated
-    ? buildAgentSubprocessEnv(options.env)
+    ? buildAgentSubprocessEnv({ ...installCredentials, ...options.env })
     : buildProviderSubprocessEnv(options.execContext?.kind === 'container' ? {} : options);
   const secrets = [
     ...collectCredentialValues(env, options.protectedEnvKeys),
@@ -122,6 +143,7 @@ function startProcess(
       options.protectedEnvKeys,
       Object.values(options.env ?? {}).filter(value => value.length >= 8)
     ),
+    ...Object.values(installCredentials),
   ];
   secrets.push(...secrets.map(value => JSON.stringify(value).slice(1, -1)));
   secrets.sort((a, b) => b.length - a.length);

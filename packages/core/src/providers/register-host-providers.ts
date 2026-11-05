@@ -1,5 +1,5 @@
 import { BUNDLED_IS_BINARY, getPluginsPath, getSourceProviderEntry } from '@archon/paths';
-import { MAINTAINED_PROVIDER_IDS } from '@archon/provider-contract';
+import { isAgentIsolationEnabled, MAINTAINED_PROVIDER_IDS } from '@archon/provider-contract';
 import { maintainedDescriptors, registerProvider } from '@archon/providers';
 import { registerCopilotProvider } from '@archon/providers/community/copilot';
 import { registerOpencodeProvider } from '@archon/providers/community/opencode';
@@ -23,8 +23,12 @@ export async function registerHostProviders(): Promise<void> {
       );
     }
   }
-  registerOpencodeProvider();
-  registerCopilotProvider();
+  // These two run inside the server, so they would execute agents as its user with its
+  // credentials. Under isolation a workflow naming them fails as an unknown provider.
+  if (!isAgentIsolationEnabled()) {
+    registerOpencodeProvider();
+    registerCopilotProvider();
+  }
   for (const registration of await loadProviderPlugins(getPluginsPath(), {
     maintained: BUNDLED_IS_BINARY ? 'installed' : 'source',
   })) {

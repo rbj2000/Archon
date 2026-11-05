@@ -1,3 +1,4 @@
+import { isAgentIsolationEnabled } from '@archon/provider-contract';
 import { scriptInvocation } from '../../script-invocation';
 import { bashInvocation } from '../../bash-invocation';
 import { mkdir } from 'node:fs/promises';
@@ -68,6 +69,9 @@ export async function executeCodeNode(
       ctx.protectedEnvKeys,
       ctx.protectedCredentialValues
     );
+    // A dry run has no wrapper path, and its node code must not run as the server's user.
+    if (isAgentIsolationEnabled())
+      return { error: 'Dry runs cannot execute bash or script nodes under agent isolation' };
     let result: Awaited<ReturnType<typeof execFileAsync>>;
     try {
       result = await execFileAsync(command, args, {
