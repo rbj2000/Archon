@@ -142,6 +142,7 @@ export {
   AgentExecConfigError,
   buildAgentSubprocessEnv,
   isAgentIsolationEnabled,
+  isAgentWritablePath,
   planAgentSpawn,
   startAgentPipes,
 } from './agent-exec';

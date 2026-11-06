@@ -8,6 +8,7 @@ import {
   AgentExecConfigError,
   buildAgentSubprocessEnv,
   isAgentIsolationEnabled,
+  isAgentWritablePath,
   planAgentSpawn,
   startAgentPipes,
 } from './agent-exec';
@@ -169,6 +170,33 @@ describe('agreement with the wrapper', () => {
     const block = /ALLOWED_ARCHON\[\] = \{([^}]*)\}/.exec(source)?.[1] ?? '';
     const inC = [...block.matchAll(/"([A-Z_]+)"/g)].map(match => match[1]);
     expect(inC.sort()).toEqual([...AGENT_ARCHON_ENV_KEYS].sort());
+  });
+
+  test('every shape the wrapper allows counts as agent-writable', () => {
+    const rule = /cwd_in_allowed_root[^{]*\{([\s\S]*?)\n\}/.exec(source)?.[1] ?? '';
+    expect(rule).toContain('strcmp(parts[1], "worktrees") == 0) return true');
+    expect(rule).toContain('strcmp(parts[4], "worktrees") == 0');
+    expect(rule).toContain('strcmp(parts[4], "artifacts") == 0');
+    expect([...rule.matchAll(/strcmp\(parts\[\d\], "([a-z.]+)"\)/g)].map(m => m[1]).sort()).toEqual(
+      ['.archon', 'artifacts', 'workspaces', 'worktrees', 'worktrees']
+    );
+    for (const path of [
+      '/.archon/worktrees/a',
+      '/.archon/worktrees',
+      '/.archon/workspaces/o/r/worktrees/a',
+      '/.archon/workspaces/o/r/worktrees',
+      '/.archon/workspaces/o/r/artifacts/run',
+    ])
+      expect(isAgentWritablePath(path)).toBe(true);
+    for (const path of [
+      '/.archon/workspaces/o/r/source',
+      '/.archon/workspaces/o/r/source/.git',
+      '/.archon/workspaces/o/worktrees',
+      '/.archon',
+      '/app',
+      '/tmp/.archon/worktrees/a',
+    ])
+      expect(isAgentWritablePath(path)).toBe(false);
   });
 
   test('the plan keeps the fds the wrapper reads', () => {

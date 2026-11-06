@@ -141,6 +141,7 @@
       "version": "0.14.0",
       "dependencies": {
         "@archon/paths": "workspace:*",
+        "@archon/provider-contract": "workspace:*",
       },
       "peerDependencies": {
         "typescript": "^5.0.0",

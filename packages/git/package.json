@@ -13,7 +13,8 @@
     "type-check": "bun x tsc --noEmit"
   },
   "dependencies": {
-    "@archon/paths": "workspace:*"
+    "@archon/paths": "workspace:*",
+    "@archon/provider-contract": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -67,6 +68,9 @@
     ],
     [
       "src/branch-history.test.ts"
+    ],
+    [
+      "src/agent-git.test.ts"
     ]
   ]
 }

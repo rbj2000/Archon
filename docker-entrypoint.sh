@@ -33,7 +33,24 @@ if [ "$(id -u)" = "0" ]; then
       chown_failed=1
     fi
   }
-  fix_ownership /.archon
+  # With isolation on, the agent's trees keep their owner, and the shared group stays everywhere.
+  fix_agent_ownership() {
+    local err
+    if ! err=$(find /.archon \( -path /.archon/worktrees \
+      -o -path '/.archon/workspaces/*/*/worktrees' \
+      -o -path '/.archon/workspaces/*/*/artifacts' \
+      -o -path '/.archon/workspaces/*/*/state' \) -prune -o \
+      ! -user appuser -exec chown -h appuser {} + 2>&1 >/dev/null); then
+      echo "$err" >&2
+      echo 'ERROR: agent isolation needs /.archon owned by appuser; refusing to start' >&2
+      exit 1
+    fi
+  }
+  if [ -n "${ARCHON_AGENT_USER:-}" ]; then
+    fix_agent_ownership
+  else
+    fix_ownership /.archon
+  fi
   # /home/appuser is persisted to a named volume (or bind-mounted via
   # ARCHON_USER_HOME) so Claude/Codex/Pi config, ~/.gitconfig, shell history,
   # and other user-specific state survive rebuilds. On bind mounts, host UIDs
@@ -44,10 +61,24 @@ if [ "$(id -u)" = "0" ]; then
   if [ -n "${ARCHON_AGENT_USER:-}" ]; then
     install -d -o archon-agent -g archon-agent -m 700 \
       /home/archon-agent/.claude /home/archon-agent/.pi /home/archon-agent/.pi/agent || exit 1
+    # Ownership checks cannot help this user: what it can reach, it can already run code as itself.
+    # The commit identity carries over so that commits look as they did before isolation.
+    rm -f /home/archon-agent/.gitconfig
+    {
+      printf '[safe]\n\tdirectory = *\n[user]\n'
+      printf '\tname = %s\n' "$(gosu appuser git config --global user.name || echo Archon)"
+      printf '\temail = %s\n' "$(gosu appuser git config --global user.email || echo archon@localhost)"
+    } > /home/archon-agent/.gitconfig || exit 1
+    chown root:archon-agent /home/archon-agent/.gitconfig || exit 1
+    chmod 640 /home/archon-agent/.gitconfig || exit 1
     if [ -f /home/appuser/.pi/agent/models.json ]; then
       install -o root -g archon-agent -m 640 /home/appuser/.pi/agent/models.json \
         /home/archon-agent/.pi/agent/models.json || exit 1
     fi
+  fi
+  if [ -n "${ARCHON_AGENT_USER:-}" ] && [ "$chown_failed" != "0" ]; then
+    echo 'ERROR: agent isolation cannot hold without correct ownership; refusing to start' >&2
+    exit 1
   fi
   if [ "$chown_failed" = "0" ]; then
     RUNNER="gosu appuser"
@@ -82,10 +113,22 @@ fi
 # The Dockerfile RUN-layer registers fixed paths, but that gitconfig lives
 # in the image layer — bind mounts don't inherit it on restart, and
 # worktrees are nested at arbitrary depths unknown at build time.
+# With isolation on the server's git only reads its own clones, which pass the ownership check
+# unaided, and this walk would otherwise register .git paths the agent planted.
+if [ -n "${ARCHON_AGENT_USER:-}" ]; then
+  $RUNNER git config --global --unset-all safe.directory || [ $? -eq 5 ]
+  # New files must stay usable by the other user, in the group the shared trees inherit.
+  umask 002
+  $RUNNER bun -e 'import { applyAgentLayout } from "@archon/git"; await applyAgentLayout("/.archon");' || {
+    echo 'ERROR: failed to apply the agent isolation layout; refusing to start' >&2
+    exit 1
+  }
+else
 find /.archon -name ".git" -prune -print0 | while IFS= read -r -d '' git_dir; do
   repo_dir="${git_dir%/.git}"
   $RUNNER bun -e 'import { addSafeDirectory, toRepoPath } from "@archon/git"; await addSafeDirectory(toRepoPath(process.argv[1]));' "$repo_dir"
 done
+fi
 
 # The token stays in the environment, not in the persisted ~/.gitconfig.
 ARCHON_PAT_HELPER='!f() { echo "username=x-access-token"; echo "password=${GH_TOKEN}"; }; f'

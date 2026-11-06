@@ -11,7 +11,7 @@ const REPO_ROOT = resolve(import.meta.dir, '..');
 
 const WRAPPED = 'Goes through planAgentSpawn when isolation is on';
 const INSIDE_PLUGIN = 'Runs inside a provider plugin process, which is already wrapped';
-const GIT = 'Git as the server user; routing belongs to the git isolation phase';
+const GIT = 'Git through execFileAsync, which routes agent-writable locations to the agent user';
 const OPERATOR = 'Operator-run command or operator-installed program, not workflow code';
 const REFUSED = 'Refuses to execute node code when isolation is on';
 const NOT_REGISTERED = 'Its provider is not registered when isolation is on';
@@ -45,6 +45,7 @@ export const AGENT_SPAWN_LEDGER: Readonly<Record<string, string>> = {
   'packages/core/src/workflows/branch-launch-source.ts': GIT,
   'packages/forge/src/credentials.ts': OPERATOR,
   'packages/forge/src/plugin-process.ts': OPERATOR,
+  'packages/git/src/agent-git.ts': WRAPPED,
   'packages/git/src/branch.ts': GIT,
   'packages/git/src/exec.ts': GIT,
   'packages/git/src/registration-trust.ts': GIT,

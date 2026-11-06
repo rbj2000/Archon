@@ -83,6 +83,18 @@ function encodeAgentEnv(env: Readonly<Record<string, string>>): Buffer {
   return Buffer.from(records.join(''), 'utf8');
 }
 
+/**
+ * Whether a resolved path lies in a tree the agent can write: the wrapper's allowed `--cwd` roots,
+ * plus the directories that hold them. The server must not run git in any of these. The wrapper's
+ * `cwd_in_allowed_root` owns the same shape; agent-exec.test.ts compares the two.
+ */
+export function isAgentWritablePath(path: string): boolean {
+  const parts = path.split('/').filter(part => part !== '');
+  if (parts[0] !== '.archon') return false;
+  if (parts[1] === 'worktrees') return true;
+  return parts[1] === 'workspaces' && (parts[4] === 'worktrees' || parts[4] === 'artifacts');
+}
+
 export interface AgentSpawnRequest {
   argv: readonly [string, ...string[]];
   /** The working directory, or `home` for a call that has none, such as a credential check. */

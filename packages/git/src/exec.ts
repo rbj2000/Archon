@@ -1,5 +1,7 @@
 import { realpath, stat } from 'node:fs/promises';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
+import { isAgentIsolationEnabled } from '@archon/provider-contract';
+import { runIsolatedGit } from './agent-git';
 import { GitFailure, type GitFailureKind } from './errors';
 import { execFile } from 'child_process';
 import { existsSync } from 'fs';
@@ -123,7 +125,9 @@ async function hasRepositoryMarkerAt(path: string): Promise<boolean> {
 async function classifyGitFailure(
   cause: unknown,
   args: string[],
-  options: Parameters<typeof execFileAsync>[2]
+  options: Parameters<typeof execFileAsync>[2],
+  probe: (args: string[]) => Promise<unknown> = probeArgs =>
+    promisifiedExecFile('git', probeArgs, { windowsHide: true, ...options })
 ): Promise<GitFailureKind> {
   let kind: GitFailureKind = 'unclassified';
   if (
@@ -151,10 +155,7 @@ async function classifyGitFailure(
       else if (cause.code === 128 && !(await hasRepositoryMarker(path, env))) {
         // Repository discovery also exits 128 for invalid configuration. Verify
         // Git can load its configuration before treating absence as the cause.
-        await promisifiedExecFile('git', ['-C', path, 'config', '--list', '--name-only'], {
-          windowsHide: true,
-          ...options,
-        });
+        await probe(['-C', path, 'config', '--list', '--name-only']);
         kind = 'not_repository';
       }
     } catch {
@@ -199,6 +200,17 @@ export async function execFileAsync(
   }
 ): Promise<{ stdout: string; stderr: string }> {
   const { input, ...execOptions } = options ?? {};
+  if (cmd === 'git' && isAgentIsolationEnabled()) {
+    const run = (gitArgs: string[]): ReturnType<typeof runIsolatedGit> =>
+      runIsolatedGit(gitArgs, { ...execOptions, input });
+    const result = await run(args).catch(async (cause: unknown) => {
+      if (cause instanceof TypeError || cause instanceof RangeError) throw cause;
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      const kind = await classifyGitFailure(cause, args, execOptions, run);
+      throw new GitFailure(kind, detail, cause);
+    });
+    return { stdout: result.stdout.toString('utf8'), stderr: result.stderr.toString('utf8') };
+  }
   const pending = promisifiedExecFile(cmd, args, { windowsHide: true, ...execOptions });
   let inputError: Error | undefined;
   if (input !== undefined) {

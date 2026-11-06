@@ -1,4 +1,5 @@
 import { GitFailure } from './errors';
+import { isAgentIsolationEnabled, isAgentWritablePath } from '@archon/provider-contract';
 import { gitCredentialOptions, sanitizeGitError } from './credentials';
 import { inspectRemoteBranches, ConfiguredBaseBranchNotFoundError } from './remote-branches';
 import { existsSync } from 'fs';
@@ -752,6 +753,8 @@ async function readGlobalSafeDirectories(): Promise<{ source: string; value: str
  * Uses execFileAsync (no shell interpolation) for safety.
  */
 export async function addSafeDirectory(path: RepoPath): Promise<void> {
+  // The server's git never runs in these trees, so trust there could only serve a planted repo.
+  if (isAgentIsolationEnabled() && isAgentWritablePath(path)) return;
   if (await newPathOwnedByCurrentUser(path)) return;
   try {
     const entries = await readGlobalSafeDirectories();

@@ -16,6 +16,8 @@ export { toRepoPath, toBranchName, toWorktreePath } from './types';
 
 // Process and filesystem wrappers
 export { execFileAsync, mkdirAsync, resolveBashPath } from './exec';
+export { runIsolatedGit } from './agent-git';
+export { applyAgentLayout, ensureProjectAgentLayout, shareTree } from './agent-layout';
 
 // Worktree operations
 export {

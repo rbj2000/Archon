@@ -5,21 +5,24 @@
 
 import { randomUUID } from 'crypto';
 import { access, stat, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { dirname, join } from 'path';
 
 import {
   execFileAsync,
   ConfiguredBaseBranchNotFoundError,
+  ensureProjectAgentLayout,
   getDefaultRemote,
   getGitCheckoutIdentity,
   mkdirAsync,
   refreshWorktreeIndex,
+  shareTree,
   syncWorkspace,
   toBranchName,
   toWorktreePath,
 } from '@archon/git';
 import type { BranchName, RepoPath } from '@archon/git';
 import { isInsideArchonWorkspaces } from '@archon/paths';
+import { isAgentIsolationEnabled } from '@archon/provider-contract';
 import { validateWorktreePostCreate } from '../../post-create-config';
 import { IsolationFailure, MissingProjectDirectoryError } from '../../errors';
 import { copyWorktreeFiles } from '../../worktree-copy';
@@ -190,6 +193,8 @@ async function createWorktree(
     recursive: true,
   });
 
+  if (isAgentIsolationEnabled()) await ensureProjectAgentLayout(dirname(repoPath));
+
   const checkout = await checkOutBranch(
     request,
     worktreePath,
@@ -208,6 +213,11 @@ async function createWorktree(
   // adopts it as ready (#3448).
   const existingBranch = request.workflowType === 'task' && request.taskBranch?.kind === 'existing';
   await rollBackOnFailure(repoPath, worktreePath, setupLockReason, async () => {
+    if (isAgentIsolationEnabled()) {
+      // Before anything runs as the agent, so its git can use the checkout at all.
+      await shareTree(worktreePath);
+      await shareTree((await getGitCheckoutIdentity(worktreePath)).gitDir);
+    }
     await finishWorktreeSetup(request, repoPath, worktreePath, worktreeConfig, setupExecutor);
     if (existingBranch) return;
     const identity = await getGitCheckoutIdentity(worktreePath);

@@ -42,7 +42,7 @@ export const PACKAGE_LAYERING: Layering = {
   'provider-contract': { runtime: [] },
   'chat-contract': { runtime: ['provider-contract'] },
   'plugin-manifest': { runtime: ['chat-contract', 'paths', 'provider-contract'] },
-  git: { runtime: ['paths'] },
+  git: { runtime: ['paths', 'provider-contract'] },
   forge: { runtime: ['paths'] },
   providers: { runtime: ['paths', 'provider-contract'] },
   workflows: {

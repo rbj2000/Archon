@@ -15,8 +15,8 @@ import { execFile } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { lstat, readlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { execFileAsync } from '@archon/git';
-import type { ExecutionContext } from '@archon/provider-contract';
+import { execFileAsync, runIsolatedGit } from '@archon/git';
+import { isAgentIsolationEnabled, type ExecutionContext } from '@archon/provider-contract';
 import { writeArtifactFile } from './artifact-writes';
 import { ARTIFACT_POINTER_TYPE } from './schemas/artifact-pointer';
 import {
@@ -61,6 +61,22 @@ function runGit(cwd: string, args: string[], input?: Buffer): Promise<GitResult>
     ),
     GIT_OPTIONAL_LOCKS: '0',
   };
+  if (isAgentIsolationEnabled()) {
+    return runIsolatedGit(['--no-optional-locks', ...args], {
+      cwd,
+      env,
+      timeout: GIT_TIMEOUT_MS,
+      maxBuffer: GIT_MAX_BUFFER,
+      ...(input !== undefined ? { input } : {}),
+    }).then(
+      ({ stdout }) => ({ code: 0, stdout }),
+      // As below: only git's numeric exit status is a real answer; anything else is a failed read.
+      (error: { code?: unknown; stdoutBuffer?: Buffer }) => ({
+        code: typeof error.code === 'number' ? error.code : -1,
+        stdout: error.stdoutBuffer ?? Buffer.alloc(0),
+      })
+    );
+  }
   return new Promise(resolve => {
     const child = execFile(
       'git',
