@@ -15,7 +15,11 @@ import {
   restoreRunAiConfigurationDefaults,
 } from './run-ai-configuration';
 import type { RunAiConfigurationSnapshot } from './schemas/run-ai-configuration';
-import type { CredentialSource, CredentialStatus } from '@archon/provider-contract';
+import {
+  isAgentIsolationEnabled,
+  type CredentialSource,
+  type CredentialStatus,
+} from '@archon/provider-contract';
 import type { StoredProviderCredential, WorkflowConfig, WorkflowDeps } from './deps';
 import type { ResolvedWorkflow, WorkflowRun, DagNode } from './schemas';
 import { resolvedBodyNodes } from './graph-plan';
@@ -499,8 +503,9 @@ async function checkNativeCredential(
   requirement: RunCredentialRequirement,
   context: { cwd: string; execContext?: ExecutionContext }
 ): Promise<CredentialStatus> {
-  // A container runs with only the environment Archon forwards, never the host's.
-  const baseEnv = context.execContext?.kind === 'container' ? {} : process.env;
+  // A container or agent-user process gets only the environment Archon forwards, never the host's.
+  const baseEnv =
+    context.execContext?.kind === 'container' || isAgentIsolationEnabled() ? {} : process.env;
   const signal = AbortSignal.timeout(NATIVE_CREDENTIAL_TIMEOUT_MS);
   const timedOut = (): CredentialStatus => ({
     state: 'check_failed',

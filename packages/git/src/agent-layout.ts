@@ -3,7 +3,7 @@
  * start, and worktree creation, because a project registered after boot has no layout yet. Any
  * failure propagates: without this layout the boundary is not in force.
  */
-import { chmod, chown, lstat, readdir } from 'node:fs/promises';
+import { chmod, chown, lstat, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const SHARED_GROUP_GID = 1300;
@@ -72,6 +72,18 @@ export async function shareTree(path: string): Promise<void> {
   }
 }
 
+/** The server's umask closes a new clone, but the agent's git must read what it may not write. */
+async function openForReading(path: string): Promise<void> {
+  const entry = await lstat(path);
+  if (entry.isSymbolicLink() || !isOurs(entry)) return;
+  if (entry.isDirectory()) {
+    await chmod(path, (entry.mode & 0o7777 & ~0o022) | 0o755);
+    for (const name of await entries(path)) await openForReading(join(path, name));
+  } else {
+    await chmod(path, (entry.mode & 0o7777 & ~0o022) | 0o644);
+  }
+}
+
 async function closeToOthers(path: string): Promise<void> {
   const entry = await lstat(path);
   if (entry.isSymbolicLink() || !isOurs(entry)) return;
@@ -87,18 +99,18 @@ async function applySourceLayout(source: string): Promise<void> {
   }
   await share(source, TRAVERSE);
   await chmod(git, 0o755);
-  for (const name of GIT_SHARED) {
-    try {
-      await shareTree(join(git, name));
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
+  for (const name of await entries(git)) {
+    if (GIT_SHARED.includes(name)) await shareTree(join(git, name));
+    else await openForReading(join(git, name));
   }
 }
 
 /** One project directory: `<home>/workspaces/<owner>/<repo>`. Safe to repeat. */
 export async function applyProjectAgentLayout(projectRoot: string): Promise<void> {
   await share(projectRoot, TRAVERSE);
+  // Created here, because the engine would create it later with default modes the agent could read.
+  await mkdir(join(projectRoot, 'logs'), { recursive: true });
+  await chmod(join(projectRoot, 'logs'), 0o700);
   for (const name of await entries(projectRoot)) {
     const path = join(projectRoot, name);
     if (name === 'source') await applySourceLayout(path);

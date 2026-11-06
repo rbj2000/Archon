@@ -118,8 +118,9 @@ fi
 # unaided, and this walk would otherwise register .git paths the agent planted.
 if [ -n "${ARCHON_AGENT_USER:-}" ]; then
   $RUNNER git config --global --unset-all safe.directory || [ $? -eq 5 ]
-  # New files must stay usable by the other user, in the group the shared trees inherit.
-  umask 002
+  # Anything new is closed to the agent unless it lands in a shared tree, whose setgid gives it the
+  # shared group. Closing paths one by one cannot hold: the database appears after the layout runs.
+  umask 007
   $RUNNER bun -e 'import { applyAgentLayout } from "@archon/git"; await applyAgentLayout("/.archon");' || {
     echo 'ERROR: failed to apply the agent isolation layout; refusing to start' >&2
     exit 1

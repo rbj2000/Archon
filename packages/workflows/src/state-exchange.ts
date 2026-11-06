@@ -92,6 +92,8 @@ export async function prepareStateExchange(input: {
   await chmod(root, 0o711);
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { mode: 0o755 });
+  // Explicit, because a umask that closes files to the agent would otherwise mask these modes.
+  await chmod(dir, 0o755);
 
   const documents = await input.store.getStateDocuments({
     kind: 'project',
@@ -102,6 +104,7 @@ export async function prepareStateExchange(input: {
     documents: documents.map(({ name, revision, value }) => ({ name, revision, value })),
   };
   await writeFile(stateSnapshotPath(dir), JSON.stringify(snapshot), { mode: 0o644 });
+  await chmod(stateSnapshotPath(dir), 0o644);
 
   const outbox = stateOutboxPath(dir);
   const { gid } = await stat(input.stateDir);

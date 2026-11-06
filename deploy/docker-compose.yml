@@ -19,6 +19,9 @@ services:
       ARCHON_DOCKER: "true"
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
+    # bun as PID 1 does not reap orphans, and a zombie reads as a live process group, which makes
+    # cancelling a detached run fail. Compose's init does the reaping.
+    init: true
     volumes:
       - ${ARCHON_DATA:-archon_data}:/.archon
       - ${ARCHON_USER_HOME:-archon_user_home}:/home/appuser

@@ -43,7 +43,7 @@ YAML
   chown -R appuser:appuser /.archon
 " || { bad 'seeding failed'; exit 1; }
 
-docker run -d --name "$C" -e ARCHON_DOCKER=true -e ARCHON_AGENT_USER=archon-agent -e PORT=3090 \
+docker run -d --init --name "$C" -e ARCHON_DOCKER=true -e ARCHON_AGENT_USER=archon-agent -e PORT=3090 \
   -v "$V:/.archon" -v "$V-agent:/home/archon-agent" "$IMAGE" >/dev/null
 for _ in $(seq 60); do
   docker exec "$C" curl -fs localhost:3090/api/health >/dev/null 2>&1 && break
@@ -78,7 +78,7 @@ fi
 # Sessions and provisioning survive recreating the container.
 in_c gosu archon-agent touch /home/archon-agent/.claude/marker
 docker rm -f "$C" >/dev/null
-docker run -d --name "$C" -e ARCHON_DOCKER=true -e ARCHON_AGENT_USER=archon-agent -e PORT=3090 \
+docker run -d --init --name "$C" -e ARCHON_DOCKER=true -e ARCHON_AGENT_USER=archon-agent -e PORT=3090 \
   -v "$V:/.archon" -v "$V-agent:/home/archon-agent" "$IMAGE" >/dev/null
 for _ in $(seq 60); do
   docker exec "$C" curl -fs localhost:3090/api/health >/dev/null 2>&1 && break

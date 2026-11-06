@@ -74,6 +74,31 @@ function fixture(status: CredentialStatus = { state: 'not_checked', source: 'nat
 }
 
 describe('run credential preflight', () => {
+  test('with isolation on, the native check receives none of the server environment', async () => {
+    const saved = { user: process.env.ARCHON_AGENT_USER, secret: process.env.SERVER_ONLY_SECRET };
+    process.env.ARCHON_AGENT_USER = 'archon-agent';
+    process.env.SERVER_ONLY_SECRET = 'sentinel';
+    try {
+      const { deps, checkCredential } = fixture();
+      const workflow = makeTestResolvedWorkflow({
+        name: 'ai',
+        nodes: [{ id: 'ai', prompt: 'run' }],
+      });
+      await assertRunCredentials(deps, await prepareRunAiConfiguration(deps, workflow, '/p'), {
+        cwd: '/p',
+      }).catch(() => undefined);
+      expect(checkCredential).toHaveBeenCalled();
+      const env = checkCredential.mock.calls[0]?.[0].env ?? {};
+      expect(env.SERVER_ONLY_SECRET).toBeUndefined();
+      expect(env.PATH).toBeUndefined();
+    } finally {
+      if (saved.user === undefined) delete process.env.ARCHON_AGENT_USER;
+      else process.env.ARCHON_AGENT_USER = saved.user;
+      if (saved.secret === undefined) delete process.env.SERVER_ONLY_SECRET;
+      else process.env.SERVER_ONLY_SECRET = saved.secret;
+    }
+  });
+
   test('enumerates actual aliases, loop scopes and conditional nodes, excluding coordination nodes', async () => {
     const workflow = makeTestResolvedWorkflow({
       name: 'graph',
