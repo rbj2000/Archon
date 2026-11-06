@@ -7,6 +7,7 @@ export {
   getArchonHome,
   getArchonWorkspacesPath,
   isPathInside,
+  readFileInside,
   isInsideArchonWorkspaces,
   ensureArchonWorkspacesPath,
   getArchonWorktreesPath,

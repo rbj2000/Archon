@@ -1,6 +1,6 @@
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { realpath, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isPathInside } from '@archon/paths';
+import { isPathInside, readFileInside } from '@archon/paths';
 import type { WorkflowHost } from '@archon/core/workflows/host-store';
 import type { WorkflowRun } from '@archon/workflows/schemas/workflow-run';
 import { writeJsonLine, writeStderr, writeStdout } from '../utils/stdout';
@@ -143,7 +143,7 @@ async function readContainedFile(
         run.id
       );
     }
-    return await readFile(realCandidate);
+    return await readFileInside(realDir, realCandidate);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     // ENOTDIR: a path that walks through a file, such as `plan.md/x`.

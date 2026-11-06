@@ -338,12 +338,12 @@ describe('GET /api/artifacts/:runId/* storage-key resolution', () => {
       default_cwd: '/home/u/workspace',
     }));
     const { app } = makeApp();
-    const read = spyOn(fsPromises, 'readFile').mockRejectedValueOnce(
+    const read = spyOn(fsPromises, 'open').mockRejectedValueOnce(
       Object.assign(new Error('artifact read failed'), { code })
     );
     try {
       const response = await app.request(`/api/artifacts/${runId}/report.md`);
-      expect(read).toHaveBeenCalledWith(resolvedTarget, 'utf-8');
+      expect(read.mock.calls[0]?.[0]).toBe(resolvedTarget);
       expect(response.status).toBe(status);
       expect(await response.json()).toEqual({
         error: code === 'ENOENT' ? 'Artifact file not found' : 'Failed to read artifact file',

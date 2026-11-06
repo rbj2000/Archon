@@ -61,6 +61,7 @@ if [ "$(id -u)" = "0" ]; then
   if [ -n "${ARCHON_AGENT_USER:-}" ]; then
     install -d -o archon-agent -g archon-agent -m 700 \
       /home/archon-agent/.claude /home/archon-agent/.pi /home/archon-agent/.pi/agent || exit 1
+    chmod 700 /home/appuser || exit 1
     # Ownership checks cannot help this user: what it can reach, it can already run code as itself.
     # The commit identity carries over so that commits look as they did before isolation.
     rm -f /home/archon-agent/.gitconfig

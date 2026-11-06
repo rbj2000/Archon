@@ -6,8 +6,8 @@
 import { join, normalize, resolve, sep, relative, isAbsolute, parse } from 'path';
 import type { PlatformPath } from 'path';
 import { homedir } from 'os';
-import { mkdir } from 'fs/promises';
-import { readFileSync } from 'fs';
+import { mkdir, open, realpath } from 'fs/promises';
+import { constants, existsSync, readFileSync } from 'fs';
 import { createLogger } from './logger';
 
 /** Lazy-initialized logger (deferred so test mocks can intercept createLogger) */
@@ -311,4 +311,29 @@ export function logArchonPaths(): void {
   const config = getArchonConfigPath();
 
   getLog().info({ home, workspaces, worktrees, config }, 'paths_configured');
+}
+
+/**
+ * Read a file that must stay inside `realRoot`, in a tree another user can write. Checking a path and
+ * then reading it leaves a window to swap a parent directory for a symlink, so the check is made on
+ * the opened descriptor. A non-regular file is refused, because opening a FIFO would hang a reader.
+ * Without `/proc` (macOS, Windows) the descriptor cannot be resolved, and only the leaf is protected;
+ * agent isolation runs only on Linux.
+ */
+export async function readFileInside(realRoot: string, path: string): Promise<Buffer> {
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const refuse = (message: string, code: string): Error =>
+      Object.assign(new Error(`${message}: ${path}`), { code });
+    if (!(await handle.stat()).isFile()) throw refuse('Not a regular file', 'EINVAL');
+    if (existsSync('/proc/self/fd')) {
+      const opened = await realpath(`/proc/self/fd/${String(handle.fd)}`);
+      if (!isPathInside(realRoot, opened, { includeRoot: true, lexical: true })) {
+        throw refuse('File is outside its root', 'ELOOP');
+      }
+    }
+    return await handle.readFile();
+  } finally {
+    await handle.close();
+  }
 }

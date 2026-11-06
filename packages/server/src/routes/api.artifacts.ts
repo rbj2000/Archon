@@ -1,6 +1,6 @@
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
-import { readFile, readdir, realpath, stat } from 'fs/promises';
+import { readdir, realpath, stat } from 'fs/promises';
 import { normalize, join } from 'path';
 import {
   getRunArtifactsDirForRoot,
@@ -8,6 +8,7 @@ import {
   resolveRunStorageRoot,
   isInsideArchonHome,
   isPathInside,
+  readFileInside,
   getArchonHome,
 } from '@archon/paths';
 import * as codebaseDb from '@archon/core/db/codebases';
@@ -316,9 +317,10 @@ async function serveArtifactFile(
 
   let content: string;
   try {
-    content = await readFile(realFilePath, 'utf-8');
+    content = (await readFileInside(realArtifactDir, realFilePath)).toString('utf-8');
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ELOOP' || code === 'EINVAL') {
       return apiError(c, 404, 'Artifact file not found');
     }
     getLog().error({ err, runId, filename }, 'artifacts.read_failed');

@@ -22,6 +22,7 @@ services:
     volumes:
       - ${ARCHON_DATA:-archon_data}:/.archon
       - ${ARCHON_USER_HOME:-archon_user_home}:/home/appuser
+      - archon_agent_home:/home/archon-agent
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/api/health"]
       interval: 30s
@@ -48,4 +49,5 @@ services:
 volumes:
   archon_data:
   archon_user_home:
+  archon_agent_home:
   # postgres_data:
