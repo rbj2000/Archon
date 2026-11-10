@@ -113,7 +113,12 @@ mock.module('@archon/core/operations/isolation-operations', () => ({
 }));
 mock.module('@archon/core', () => ({ loadRepoConfig: async () => ({}) }));
 mock.module('@archon/core/config/config-loader', () => ({ loadRepoConfig: async () => ({}) }));
-mock.module('@archon/paths', () => ({ createLogger: () => createMockLogger() }));
+mock.module('@archon/paths', () => ({
+  createLogger: () => createMockLogger(),
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
+}));
 
 const { setPlatformPolicies, clearPlatformPolicies } = await import(
   '@archon/core/platforms/registry'

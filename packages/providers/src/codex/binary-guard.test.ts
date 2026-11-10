@@ -13,6 +13,9 @@ import { createMockLogger } from '../test/mocks/logger';
 
 let archonHome = '';
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => createMockLogger()),
   BUNDLED_IS_BINARY: true,
   BUNDLED_VERSION: 'test',

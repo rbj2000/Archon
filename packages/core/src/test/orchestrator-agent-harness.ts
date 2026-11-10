@@ -164,6 +164,9 @@ export const mockCaptureApprovalResolved = mock(() => undefined);
 export const { canonicalizeProjectPath, getProjectStoragePaths, resolveProjectStorageKey } =
   await import('@archon/paths');
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_IS_BINARY: false,
   BUNDLED_VERSION: 'test',
   getProjectStoragePaths,
@@ -597,6 +600,18 @@ export const mockGetCurrentBranchStrict = mock(
   async (): Promise<string | null> => 'feature/adopted'
 );
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   getCurrentBranchStrict: mockGetCurrentBranchStrict,
   verifyWorktreeOwnership: mock(async () => {}),
   getDefaultRemote: mockGetDefaultRemote,

@@ -28,6 +28,9 @@ const {
 } = await import('@archon/paths');
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({
     fatal: () => undefined,
     error: () => undefined,

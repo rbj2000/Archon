@@ -72,6 +72,9 @@ export function cwdPath(cwd: string, ...segments: string[]): string {
 }
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
   parseOwnerRepo: mock(realStorage.parseOwnerRepo),
   resolveRepoProjectIdentity: mock(realStorage.resolveRepoProjectIdentity),
@@ -97,6 +100,18 @@ mock.module('@archon/paths', () => ({
 
 export const mockGetDefaultBranch = mock(async () => 'main');
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   getDefaultBranch: mockGetDefaultBranch,
   getDefaultRemote: mock(async () => 'origin'),
   toRepoPath: mock((p: string) => p),

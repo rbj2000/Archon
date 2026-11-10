@@ -88,6 +88,9 @@ mock.module('@archon/core/db/conversations', () => ({
   getConversationById: mockGetConversationById,
 }));
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({
     debug: mock(() => undefined),
     info: mock(() => undefined),

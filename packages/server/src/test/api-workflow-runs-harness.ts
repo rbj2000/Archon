@@ -8,6 +8,7 @@ import type { AttentionRead } from '@archon/workflows/schemas/attention-degraded
 import { mock, beforeAll } from 'bun:test';
 import { join, relative, sep } from 'path';
 import * as realStorage from '@archon/paths/archon-paths';
+import { readFileInside } from '@archon/paths';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import type { User } from '@archon/core';
 import { providerRegistry } from '@archon/providers';
@@ -265,8 +266,13 @@ function storagePathsForRootFake(root: string): {
   };
 }
 
+// Captured before mock.module below rebinds the import.
+const realReadFileInside = readFileInside;
+
 export const mockCaptureApprovalResolved = mock(() => undefined);
 mock.module('@archon/paths', () => ({
+  // The artifact routes read real files under the temp ARCHON_HOME.
+  readFileInside: realReadFileInside,
   canonicalizeProjectPath: async (path: string) => path,
   captureApprovalResolved: mockCaptureApprovalResolved,
   createLogger: () => ({
@@ -318,6 +324,18 @@ mock.module('@archon/paths', () => ({
 mockAllWorkflowModules();
 
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   removeWorktree: mock(async () => {}),
   toRepoPath: (p: string) => p,
   toWorktreePath: (p: string) => p,

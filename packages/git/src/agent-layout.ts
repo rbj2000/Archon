@@ -132,6 +132,22 @@ export async function ensureProjectAgentLayout(projectRoot: string): Promise<voi
   await applyProjectAgentLayout(projectRoot);
 }
 
+/** One owner directory: `<home>/workspaces/<owner>`. */
+async function applyOwnerAgentLayout(ownerDir: string): Promise<void> {
+  await share(ownerDir, TRAVERSE);
+  for (const repo of await entries(ownerDir)) {
+    const projectRoot = join(ownerDir, repo);
+    if (!(await isRealDirectory(projectRoot))) continue;
+    try {
+      await applyProjectAgentLayout(projectRoot);
+    } catch (error) {
+      // One local-path project must not stop the server. Worktree creation refuses it instead.
+      if (!(error instanceof UnsupportedAgentProjectError)) throw error;
+      console.warn(`[archon] ${error.message}; worktree creation for it will be refused`);
+    }
+  }
+}
+
 /** The whole Archon home. The entrypoint calls this as the server user, after fixing ownership. */
 export async function applyAgentLayout(home: string): Promise<void> {
   await share(home, TRAVERSE);
@@ -146,18 +162,6 @@ export async function applyAgentLayout(home: string): Promise<void> {
   await share(workspaces, TRAVERSE);
   for (const owner of await entries(workspaces)) {
     const ownerDir = join(workspaces, owner);
-    if (!(await isRealDirectory(ownerDir))) continue;
-    await share(ownerDir, TRAVERSE);
-    for (const repo of await entries(ownerDir)) {
-      const projectRoot = join(ownerDir, repo);
-      if (!(await isRealDirectory(projectRoot))) continue;
-      try {
-        await applyProjectAgentLayout(projectRoot);
-      } catch (error) {
-        // One local-path project must not stop the server. Worktree creation refuses it instead.
-        if (!(error instanceof UnsupportedAgentProjectError)) throw error;
-        console.warn(`[archon] ${error.message}; worktree creation for it will be refused`);
-      }
-    }
+    if (await isRealDirectory(ownerDir)) await applyOwnerAgentLayout(ownerDir);
   }
 }

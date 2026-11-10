@@ -534,6 +534,9 @@ mock.module('../../services/cleanup/merged-sweep', () => ({
 // Mock logger to suppress noisy output during tests
 export const mockLogger = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   captureApprovalResolved: () => undefined,
   createLogger: mock(() => mockLogger),
   getArchonWorkspacesPath: mock(() => '/home/test/.archon/workspaces'),

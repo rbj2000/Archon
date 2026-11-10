@@ -12,7 +12,7 @@ A map of the code as it is, where it is going, and the boundaries that hold whil
 | `provider-contract` | `IAgentProvider`, provider chunks and failure classes, registration rules, the provider plugin wire | none | |
 | `chat-contract` | `ChatPlugin`, the chat plugin wire | `provider-contract` | |
 | `plugin-manifest` | Plugin manifest schema for the `provider`, `chat`, `forge` and `workflow-pack` kinds, install receipts | `chat-contract`, `paths`, `provider-contract` | |
-| `git` | Git operations | `paths` | |
+| `git` | Git operations | `paths`, `provider-contract` | |
 | `forge` | Forge seam: discovery, dispatch and conformance for forge plugins | `paths` | |
 | `providers` | Claude and Codex, Pi (maintained, though it sits under `community/`), the bundled community providers OpenCode and Copilot, the provider registry | `paths`, `provider-contract` | |
 | `workflows` | The engine: loading, validation, DAG execution, durable pauses, attention queue, store contract, file store | `git`, `paths`, `plugin-manifest`, `provider-contract` | `providers` |

@@ -23,7 +23,12 @@ const silentLogger = {
   trace: mock(() => undefined),
   child: mock(() => silentLogger),
 };
-mock.module('@archon/paths', () => ({ createLogger: mock(() => silentLogger) }));
+mock.module('@archon/paths', () => ({
+  createLogger: mock(() => silentLogger),
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
+}));
 
 import {
   countCommitsMissingFromRemotes,

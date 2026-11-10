@@ -22,6 +22,9 @@ import { sameWorktreeRegistration } from '@archon/isolation/types';
 import { toBranchName } from '@archon/git';
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({
     info() {},
     warn() {},

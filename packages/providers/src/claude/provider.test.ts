@@ -15,6 +15,9 @@ const tempRoots = trackTempRoots();
 
 const mockLogger = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_VERSION: 'test',
   createLogger: mock(() => mockLogger),
 }));

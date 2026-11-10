@@ -20,6 +20,9 @@ const mockLogger = {
   level: 'info',
 };
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
 }));
 

@@ -7,6 +7,9 @@ import * as pluginProcess from '@archon/paths/plugin-process';
 
 const log = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => log),
 }));
 

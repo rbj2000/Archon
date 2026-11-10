@@ -35,6 +35,9 @@ const mockLogger = {
 let mockHomeScriptsPath = '/home/scripts';
 let mockHomeWorkflowsPath = '/home/workflows';
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
   getArchonHome: mock(() => '/home'),
   getBundledWorkflowsPath: mock(() => '/app/workflows'),

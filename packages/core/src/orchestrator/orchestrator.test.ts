@@ -56,6 +56,9 @@ async function canonicalizeForTest(p: string): Promise<string> {
 const { getProjectStoragePaths, resolveProjectStorageKey } = await import('@archon/paths');
 const mockCanonicalizeProjectPath = mock(canonicalizeForTest);
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   canonicalizeProjectPath: mockCanonicalizeProjectPath,
   getProjectStoragePaths,
   resolveProjectStorageKey,

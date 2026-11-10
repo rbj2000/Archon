@@ -15,6 +15,9 @@ const logger = {
   },
 };
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_IS_BINARY: true,
   createLogger: () => logger,
   logArchonPaths: noop,

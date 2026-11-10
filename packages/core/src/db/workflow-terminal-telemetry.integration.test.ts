@@ -12,6 +12,9 @@ import type { WorkflowTerminalProperties } from '@archon/paths';
 
 const captured: WorkflowTerminalProperties[] = [];
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({
     info() {},
     warn() {},

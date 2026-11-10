@@ -11,6 +11,9 @@ import { describe, mock } from 'bun:test';
 import { providerEventReaderContract } from './provider-events.reader-contract';
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({
     info() {},
     warn() {},

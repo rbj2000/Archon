@@ -19,6 +19,9 @@ import { createMockLogger } from '../../test/mocks/logger';
 // module load stays quiet.
 const mockLogger = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
 }));
 

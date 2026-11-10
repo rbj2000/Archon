@@ -86,6 +86,18 @@ mock.module('@archon/paths', () => ({
 // --- Mock git (no real repo needed) ---
 export const detectDefaultBranch = mock(async () => 'main');
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   getDefaultBranch: detectDefaultBranch,
   getDefaultRemote: mock(async () => 'origin'),
   toRepoPath: mock((p: string) => p),

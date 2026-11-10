@@ -2,6 +2,9 @@ import { describe, expect, mock, test } from 'bun:test';
 import type { Codebase } from '@archon/core';
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   getProjectSourcePath: mock(
     (owner: string, repo: string) => `/tmp/test-workspaces/${owner}/${repo}/source`
   ),

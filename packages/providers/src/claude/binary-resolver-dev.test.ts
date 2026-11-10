@@ -14,6 +14,9 @@ import { join } from 'node:path';
 import { createMockLogger } from '../test/mocks/logger';
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => createMockLogger()),
   BUNDLED_IS_BINARY: false,
 }));

@@ -159,6 +159,9 @@ mock.module('@archon/core', () => ({
 }));
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   isInsideArchonWorkspaces: (path: string) => insidePath(workspacesRoot, path),
   canonicalizeProjectPath: async (path: string) => path,
   createLogger: () => ({
@@ -184,6 +187,18 @@ mock.module('@archon/paths', () => ({
 mockAllWorkflowModules();
 
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   removeWorktree: mockRemoveWorktree,
   isWorktreeRegistered: mockIsWorktreeRegistered,
   toRepoPath: (p: string) => p,

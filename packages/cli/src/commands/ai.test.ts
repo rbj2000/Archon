@@ -112,7 +112,12 @@ mock.module('@archon/core/db/users', () => ({
   findOrCreateUserByPlatformIdentity: mock(async () => ({ id: 'u1' })),
 }));
 mock.module('./auth', () => ({ resolveCliUserId: () => 'cli-alice' }));
-mock.module('@archon/paths', () => ({ createLogger: noopLogger }));
+mock.module('@archon/paths', () => ({
+  createLogger: noopLogger,
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
+}));
 
 // @archon/providers is NOT mocked — register the providers exercised by the
 // tier/default commands so isRegisteredProvider() resolves them.

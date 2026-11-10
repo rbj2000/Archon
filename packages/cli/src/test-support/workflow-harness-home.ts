@@ -72,6 +72,9 @@ export const mockCanonicalizeProjectPath = mock(async (path: string) => path);
 
 // Mock @archon/paths (createLogger moved here from @archon/core)
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   canonicalizeProjectPath: mockCanonicalizeProjectPath,
   captureApprovalResolved: () => undefined,
   createLogger: mock(() => mockLogger),

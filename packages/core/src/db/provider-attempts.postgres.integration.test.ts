@@ -14,6 +14,9 @@ import { describe, test, expect, beforeAll, afterAll, mock } from 'bun:test';
 import type { Pool as PgPool } from 'pg';
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_IS_BINARY: false,
   createLogger: () => ({
     info() {},

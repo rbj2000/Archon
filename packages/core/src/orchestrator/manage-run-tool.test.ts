@@ -150,6 +150,9 @@ const mockLogger = {
   trace: mock(() => undefined),
 };
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   captureApprovalResolved: () => undefined,
   createLogger: mock(() => mockLogger),
 }));

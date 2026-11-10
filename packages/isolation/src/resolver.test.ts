@@ -9,6 +9,9 @@ const mockCleanupInfo = mock<(...args: unknown[]) => void>(() => undefined);
 
 // Mock logger to suppress noisy output
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({
     fatal: () => undefined,
     error: mockCleanupError,

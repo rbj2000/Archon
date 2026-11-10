@@ -136,6 +136,9 @@ const logger: TestLogger = {
 };
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_IS_BINARY: false,
   getArchonEnvPath: (): string => '/tmp/.archon/.env',
   getPluginsPath: (): string => pluginsDir,
@@ -345,6 +348,18 @@ mock.module('./auth', () => ({
   isArchonOwnedAuthPath: (): boolean => false,
 }));
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   execFileAsync: async (): Promise<{ stdout: string; stderr: string }> => ({
     stdout: '',
     stderr: '',

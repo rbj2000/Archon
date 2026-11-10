@@ -7,6 +7,9 @@ import { afterAll, describe, mock, test, expect } from 'bun:test';
 import { toolCallAttentionContract } from './tool-call-attention.contract';
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_IS_BINARY: false,
   createLogger: () => ({ info() {}, warn() {}, error() {}, debug() {}, trace() {}, fatal() {} }),
   captureApprovalResolved: () => undefined,

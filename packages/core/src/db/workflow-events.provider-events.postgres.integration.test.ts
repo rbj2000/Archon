@@ -13,6 +13,9 @@ import type { Pool as PgPool } from 'pg';
 import { providerEventReaderContract } from './provider-events.reader-contract';
 
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_IS_BINARY: false,
   createLogger: () => ({
     info() {},

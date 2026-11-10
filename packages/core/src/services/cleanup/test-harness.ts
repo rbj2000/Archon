@@ -161,6 +161,9 @@ export function makeContainerEnvironment(
 
 export const mockLogger = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
 }));
 
@@ -176,6 +179,18 @@ export const mockGetLastCommitDate = mock<typeof Git.getLastCommitDate>();
 export const mockIsRevCoveredBy = mock<typeof Git.isRevCoveredBy>();
 export const mockCountCommitsMissingFromRemotes = mock<typeof Git.countCommitsMissingFromRemotes>();
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   getGitCheckoutIdentity: async () => ({
     gitDir: '/workspace/repo',
     commonGitDir: '/workspace/repo',

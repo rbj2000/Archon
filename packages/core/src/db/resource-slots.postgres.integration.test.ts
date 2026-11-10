@@ -16,6 +16,9 @@ import type { Pool as PgPool } from 'pg';
 // The barrel is fully replaced (no partial merge), so re-export the constants the
 // real module graph needs.
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   BUNDLED_IS_BINARY: false,
   createLogger: () => ({
     info() {},

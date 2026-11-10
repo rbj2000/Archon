@@ -1,7 +1,12 @@
 // @archon-test-isolated
 import { describe, expect, mock, test } from 'bun:test';
 const warn = mock(() => undefined);
-mock.module('@archon/paths', () => ({ createLogger: () => ({ warn }) }));
+mock.module('@archon/paths', () => ({
+  createLogger: () => ({ warn }),
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
+}));
 import { planEndTurn, isEndTurnRequested } from './end-turn-request';
 const { createRunToolCallAttention } = await import('./tool-call-attention');
 import { runAttention, type ToolCallAttention, type WorkflowRun } from './schemas/workflow-run';

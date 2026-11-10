@@ -37,6 +37,18 @@ const realVerifyWorktreeOwnership = (await import('@archon/git')).verifyWorktree
 const mockVerifyWorktreeOwnership = mock<typeof realVerifyWorktreeOwnership>(async () => {});
 const mockGetCurrentBranchStrict = mock(async (): Promise<string | null> => 'issue-42');
 mock.module('@archon/git', () => ({
+  runIsolatedGit: mock(() => {
+    throw new Error('runIsolatedGit is not mocked in this test');
+  }),
+  applyAgentLayout: mock(() => {
+    throw new Error('applyAgentLayout is not mocked in this test');
+  }),
+  ensureProjectAgentLayout: mock(() => {
+    throw new Error('ensureProjectAgentLayout is not mocked in this test');
+  }),
+  shareTree: mock(() => {
+    throw new Error('shareTree is not mocked in this test');
+  }),
   getCurrentBranchStrict: mockGetCurrentBranchStrict,
   verifyWorktreeOwnership: mockVerifyWorktreeOwnership,
 }));
@@ -60,6 +72,9 @@ import {
 
 const mockLogger = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   captureApprovalResolved: () => undefined,
   createLogger: mock(() => mockLogger),
   getArchonWorkspacesPath: mock(() => '/home/test/.archon/workspaces'),

@@ -18,6 +18,9 @@ import { clearConfigCache } from './config-loader';
 export const mockLogger = createMockLogger();
 export const archonHome = join(homedir(), '.archon');
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
   getArchonHome: mock(() => archonHome),
   getArchonConfigPath: mock(() => join(archonHome, 'config.yaml')),

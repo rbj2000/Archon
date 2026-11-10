@@ -27,6 +27,9 @@ const mockLogger = {
   level: 'info',
 };
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => mockLogger,
   // Other paths exports the server might pull in transitively
   logArchonPaths: mock(() => undefined),

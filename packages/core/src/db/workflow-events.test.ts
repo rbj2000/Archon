@@ -19,6 +19,9 @@ import { join } from 'node:path';
 // Mock logger to suppress noisy output during tests
 const mockLogger = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
   getArchonHome: mock(() => '/home/test/.archon'),
   getArchonConfigPath: mock(() => '/home/test/.archon/config.yaml'),

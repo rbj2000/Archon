@@ -2,6 +2,9 @@ import { describe, test, expect, beforeEach, mock, afterEach } from 'bun:test';
 
 // Mock logger before importing module under test
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({
     fatal: mock(() => undefined),
     error: mock(() => undefined),

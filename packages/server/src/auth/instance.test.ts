@@ -66,12 +66,18 @@ mock.module('better-auth/api', (): { APIError: typeof FakeAPIError } => ({
   APIError: FakeAPIError,
 }));
 mock.module('pg', (): { Pool: typeof FakePool } => ({ Pool: FakePool }));
-mock.module('@archon/paths', (): { createLogger: () => FakeLogger } => ({
-  createLogger: (): FakeLogger => ({
-    info: mock((): undefined => undefined),
-    error: mock((): undefined => undefined),
-  }),
-}));
+mock.module(
+  '@archon/paths',
+  (): { createLogger: () => FakeLogger; readFileInside: () => never } => ({
+    readFileInside: mock(() => {
+      throw new Error('readFileInside is not mocked in this test');
+    }),
+    createLogger: (): FakeLogger => ({
+      info: mock((): undefined => undefined),
+      error: mock((): undefined => undefined),
+    }),
+  })
+);
 
 const { closeAuth, getAuth, resetAuthForTest } = await import('./instance');
 

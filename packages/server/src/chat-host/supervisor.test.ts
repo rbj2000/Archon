@@ -12,6 +12,9 @@ const log = (data: unknown, event: string) => {
   records.push(JSON.stringify({ data, event }));
 };
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: () => ({ info: log, warn: log, error: log, debug: log }),
 }));
 const { ChatSupervisor } = await import('./supervisor');

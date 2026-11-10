@@ -7,6 +7,9 @@ process.env.TOKEN_ENCRYPTION_KEY = 'a'.repeat(64);
 
 const mockLogger = createMockLogger();
 mock.module('@archon/paths', () => ({
+  readFileInside: mock(() => {
+    throw new Error('readFileInside is not mocked in this test');
+  }),
   createLogger: mock(() => mockLogger),
   getCredentialKeyPath: mock(() => '/mock/.archon/credential-key'),
 }));
