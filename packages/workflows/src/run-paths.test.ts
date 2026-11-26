@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, writeFile, readFile, readdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { removeTempTree } from '@archon/paths/test-utils';
 import type { WorkflowDeps } from './deps';
-import { resolveProjectPaths, resolveScopeArtifactsDir } from './run-paths';
+import { createRunDir, resolveProjectPaths, resolveScopeArtifactsDir } from './run-paths';
 import type { WorkflowDefinition } from './schemas';
 
 const originalHome = process.env.ARCHON_HOME;
@@ -40,6 +40,9 @@ mock.module('@archon/paths', () => ({
   isInsideArchonHome: mock(actualPaths.isInsideArchonHome),
   getScopeArtifactsPath: mock(actualPaths.getScopeArtifactsPath),
 }));
+const actualGit = await import('@archon/git');
+const shareTree = mock(async (_path: string) => {});
+mock.module('@archon/git', () => ({ ...actualGit, shareTree }));
 function makeStore(
   overrides: Partial<Pick<WorkflowDeps['store'], 'getCodebase'>> = {}
 ): Pick<WorkflowDeps['store'], 'getCodebase'> {
@@ -565,5 +568,54 @@ describe('resolveScopeArtifactsDir', () => {
     };
     expect(resolveScopeArtifactsDir(workflow, null, ROOT)).toBeUndefined();
     expect(resolveScopeArtifactsDir(workflow, undefined, ROOT)).toBeUndefined();
+  });
+});
+
+// Under isolation the agent writes into these directories, and a CLI started by `docker exec`
+// creates them with umask 022; the newly created part must be handed to the shared group.
+describe('createRunDir', () => {
+  async function withAgentUser<T>(value: string | undefined, body: () => Promise<T>): Promise<T> {
+    const saved = process.env.ARCHON_AGENT_USER;
+    if (value === undefined) delete process.env.ARCHON_AGENT_USER;
+    else process.env.ARCHON_AGENT_USER = value;
+    try {
+      return await body();
+    } finally {
+      if (saved === undefined) delete process.env.ARCHON_AGENT_USER;
+      else process.env.ARCHON_AGENT_USER = saved;
+    }
+  }
+
+  it('shares the topmost directory it created when isolation is on', async () => {
+    shareTree.mockClear();
+    const root = await mkdtemp(join(testHome, 'run-dir-'));
+    const target = join(root, 'runs', 'run-1');
+    await withAgentUser('archon-agent', () => createRunDir(target));
+    expect((await readdir(join(root, 'runs'))).includes('run-1')).toBe(true);
+    expect(shareTree.mock.calls).toEqual([[join(root, 'runs')]]);
+  });
+
+  it('leaves an existing directory to the layout', async () => {
+    shareTree.mockClear();
+    const target = await mkdtemp(join(testHome, 'run-dir-'));
+    await withAgentUser('archon-agent', () => createRunDir(target));
+    expect(shareTree).not.toHaveBeenCalled();
+  });
+
+  it('only creates the directory when isolation is off', async () => {
+    shareTree.mockClear();
+    const target = join(await mkdtemp(join(testHome, 'run-dir-')), 'run-2');
+    await withAgentUser(undefined, () => createRunDir(target));
+    expect(await readdir(target)).toEqual([]);
+    expect(shareTree).not.toHaveBeenCalled();
+  });
+
+  it('fails on an unsupported agent user instead of leaving the directory unshared', async () => {
+    shareTree.mockClear();
+    const target = join(await mkdtemp(join(testHome, 'run-dir-')), 'run-3');
+    await expect(withAgentUser('root', () => createRunDir(target))).rejects.toThrow(
+      'ARCHON_AGENT_USER must be unset or archon-agent'
+    );
+    expect(shareTree).not.toHaveBeenCalled();
   });
 });

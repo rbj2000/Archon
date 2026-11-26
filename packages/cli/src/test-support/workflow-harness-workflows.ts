@@ -123,6 +123,9 @@ mock.module('@archon/workflows/run-source', () => ({
   }),
 }));
 mock.module('@archon/workflows/run-paths', () => ({
+  createRunDir: mock(() => {
+    throw new Error('createRunDir is not mocked in this test');
+  }),
   // The container dispatch resolves the run's artifacts directory to bind it into the
   // container and creates it on the host first, so hand it a real, reclaimed temp path.
   resolveProjectPaths: mock(() =>

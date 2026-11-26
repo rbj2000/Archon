@@ -1,5 +1,7 @@
 import * as archonPaths from '@archon/paths';
 import { createLogger } from '@archon/paths';
+import { shareTree } from '@archon/git';
+import { isAgentIsolationEnabled } from '@archon/provider-contract';
 import { mkdir } from 'fs/promises';
 import type { IWorkflowPlatform, WorkflowDeps } from './deps';
 import type { ExecuteWorkflowOptions } from './executor';
@@ -234,6 +236,18 @@ export interface PreparedRunPaths {
 }
 
 /**
+ * Creates a directory the run's nodes write to. Under agent isolation the agent writes there, but
+ * the creating process's umask decides the mode: a CLI started by `docker exec` has 022, which
+ * leaves a new directory closed to the shared group. Only the part this call created is shared;
+ * an existing directory already has the layout's modes, and walking it again on every run is
+ * the entrypoint's job, not this one's.
+ */
+export async function createRunDir(path: string): Promise<void> {
+  const created = await mkdir(path, { recursive: true });
+  if (created !== undefined && isAgentIsolationEnabled()) await shareTree(created);
+}
+
+/**
  * Resolve the run's output directories, record its output root, and create the
  * directories its nodes write to. A directory that cannot be created fails the run.
  */
@@ -276,9 +290,9 @@ export async function prepareRunPaths(
   // too so `$STATE_DIR` is usable from the first node without an mkdir, and an
   // unwritable state dir fails the run rather than silently degrading.
   try {
-    await mkdir(artifactsDir, { recursive: true });
-    await mkdir(stateDir, { recursive: true });
-    if (scopeArtifactsDir) await mkdir(scopeArtifactsDir, { recursive: true });
+    await createRunDir(artifactsDir);
+    await createRunDir(stateDir);
+    if (scopeArtifactsDir) await createRunDir(scopeArtifactsDir);
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     getLog().error(
